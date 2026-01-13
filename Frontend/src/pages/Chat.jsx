@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Search } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import Header from '../components/Header';
 import { useApp } from '../context/AppContext';
 
 const Chat = () => {
     const { user, chats, sendMessage } = useApp();
-    const [selectedChat, setSelectedChat] = useState(chats[0]?._id || null);
+    const location = useLocation();
+    const [selectedChat, setSelectedChat] = useState(location.state?.chatId || chats[0]?._id || null);
     const [message, setMessage] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const messagesEndRef = useRef(null);
@@ -15,6 +17,14 @@ const Chat = () => {
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
+
+    useEffect(() => {
+        if (location.state?.chatId) {
+            setSelectedChat(location.state.chatId);
+        } else if (!selectedChat && chats.length > 0) {
+            setSelectedChat(chats[0]._id);
+        }
+    }, [location.state, chats]);
 
     useEffect(() => {
         scrollToBottom();
@@ -79,9 +89,13 @@ const Chat = () => {
                                             <div className="flex-1 min-w-0 text-left">
                                                 <div className="flex items-baseline justify-between mb-1">
                                                     <h3 className="font-semibold text-gray-900 truncate">{chat.otherUser.name}</h3>
-                                                    <span className="text-xs text-gray-500 ml-2">{formatTime(lastMessage.timestamp)}</span>
+                                                    <span className="text-xs text-gray-500 ml-2">
+                                                        {lastMessage ? formatTime(lastMessage.timestamp) : ''}
+                                                    </span>
                                                 </div>
-                                                <p className="text-sm text-gray-500 truncate">{lastMessage.content}</p>
+                                                <p className="text-sm text-gray-500 truncate">
+                                                    {lastMessage ? lastMessage.content : <span className="italic text-gray-400">No messages yet</span>}
+                                                </p>
                                             </div>
                                         </button>
                                     );
@@ -108,7 +122,8 @@ const Chat = () => {
                                 {/* Messages */}
                                 <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
                                     {currentChat.messages.map((msg, index) => {
-                                        const isOwn = msg.sender === user._id;
+                                        const senderId = msg.sender._id || msg.sender;
+                                        const isOwn = senderId === user._id;
                                         return (
                                             <div
                                                 key={index}

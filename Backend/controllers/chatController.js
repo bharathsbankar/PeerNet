@@ -136,7 +136,21 @@ const sendMessage = async (req, res) => {
             return res.status(404).json({ message: "Chat not found" });
         }
 
-        res.json(updatedChat);
+        const otherUser = updatedChat.participants.find(p => p._id.toString() !== req.user.id.toString());
+
+        const fullChat = {
+            _id: updatedChat._id,
+            participants: updatedChat.participants.map(p => p._id),
+            otherUser: otherUser ? {
+                _id: otherUser._id,
+                name: otherUser.name,
+                department: otherUser.department
+            } : { name: 'Unknown' },
+            messages: updatedChat.messages,
+            lastUpdated: updatedChat.lastUpdated
+        };
+
+        res.json(fullChat);
     } catch (error) {
         console.error("Error in sendMessage: ", error);
         res.status(500).json({ message: 'Internal Server Error' });

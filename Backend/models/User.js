@@ -34,8 +34,7 @@ const userSchema = new mongoose.Schema({
         default: 'student'
     },
     interests: [{
-        type: String,
-        enum: ['music', 'sports', 'dance', 'E-games']
+        type: String
     }],
     bio: {
         type: String,

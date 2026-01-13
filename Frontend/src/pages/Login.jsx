@@ -11,10 +11,17 @@ const Login = () => {
         password: ''
     });
 
-    const handleSubmit = (e) => {
+    const [error, setError] = useState('');
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        login(formData.email, formData.password);
-        navigate('/home');
+        setError('');
+        const res = await login(formData.email, formData.password);
+        if (res.success) {
+            navigate('/home');
+        } else {
+            setError(res.message);
+        }
     };
 
     const handleChange = (e) => {
@@ -25,12 +32,12 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-sky-100 flex items-center justify-center p-4">
             <div className="max-w-6xl w-full grid md:grid-cols-2 gap-8 items-center">
                 {/* Left Side - Branding */}
                 <div className="text-center md:text-left space-y-6 animate-fade-in">
                     <div className="flex items-center justify-center md:justify-start space-x-3">
-                        <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center shadow-lg">
+                        <div className="w-16 h-16 bg-gradient-to-br from-sky-500 to-sky-700 rounded-2xl flex items-center justify-center shadow-lg">
                             <span className="text-white font-bold text-3xl">RC</span>
                         </div>
                         <h1 className="text-4xl font-bold text-gray-900">RVCE Connect</h1>
@@ -42,20 +49,20 @@ const Login = () => {
 
                     <div className="space-y-4 pt-4">
                         <div className="flex items-center space-x-3 text-gray-700">
-                            <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                                <Users className="text-primary-600" size={20} />
+                            <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center">
+                                <Users className="text-sky-600" size={20} />
                             </div>
                             <span className="font-medium">Connect with students & staff</span>
                         </div>
                         <div className="flex items-center space-x-3 text-gray-700">
-                            <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                                <Calendar className="text-primary-600" size={20} />
+                            <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center">
+                                <Calendar className="text-sky-600" size={20} />
                             </div>
                             <span className="font-medium">Stay updated with college events</span>
                         </div>
                         <div className="flex items-center space-x-3 text-gray-700">
-                            <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                                <MessageCircle className="text-primary-600" size={20} />
+                            <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center">
+                                <MessageCircle className="text-sky-600" size={20} />
                             </div>
                             <span className="font-medium">Chat with your connections</span>
                         </div>
@@ -65,6 +72,12 @@ const Login = () => {
                 {/* Right Side - Login Form */}
                 <div className="card p-8 animate-slide-up">
                     <h2 className="text-2xl font-bold text-gray-900 mb-6">Welcome Back!</h2>
+
+                    {error && (
+                        <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
+                            {error}
+                        </div>
+                    )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
@@ -111,17 +124,13 @@ const Login = () => {
                     <div className="mt-6 text-center">
                         <p className="text-gray-600">
                             Don't have an account?{' '}
-                            <Link to="/register" className="text-primary-600 hover:text-primary-700 font-semibold">
+                            <Link to="/register" className="text-sky-600 hover:text-sky-700 font-semibold">
                                 Register here
                             </Link>
                         </p>
                     </div>
 
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                        <p className="text-xs text-gray-500 text-center">
-                            For demo: Use any email and password to login
-                        </p>
-                    </div>
+
                 </div>
             </div>
         </div>

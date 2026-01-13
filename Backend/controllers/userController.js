@@ -8,13 +8,16 @@ const getRecommendations = async (req, res) => {
     try {
         const currentUser = await User.findById(req.user.id);
 
-        // Exclude: Self, Already Connected
-        const excludedIds = [currentUser._id, ...currentUser.connectedPeers];
+        // Get list of users I have already requested
+        const myRequests = await ConnectionRequest.find({
+            sender: req.user.id,
+            status: 'pending'
+        }).select('receiver');
 
-        // Find users NOT in excluded list
-        // Strategy: Just fetch all (limit 50) and sort by matching interests/dept?
-        // Or filter in DB?
-        // Let's filter in DB for scale.
+        const requestedUserIds = myRequests.map(r => r.receiver);
+
+        // Exclude: Self, Already Connected, AND Pending Requests
+        const excludedIds = [currentUser._id, ...currentUser.connectedPeers, ...requestedUserIds];
 
         const candidates = await User.find({
             _id: { $nin: excludedIds }
@@ -109,6 +112,9 @@ const sendRequest = async (req, res) => {
         res.status(201).json(newRequest);
 
     } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ message: "Request already sent" });
+        }
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
     }
@@ -181,11 +187,79 @@ const rejectRequest = async (req, res) => {
     }
 };
 
+// @desc    Search Users
+// @route   GET /api/users/search/:query
+// @access  Private
+const searchUsers = async (req, res) => {
+    try {
+        const query = req.params.query;
+        if (!query) return res.status(400).json({ message: "Search term required" });
+
+        const users = await User.find({
+            _id: { $ne: req.user.id }, // Exclude self
+            $or: [
+                { name: { $regex: query, $options: 'i' } },
+                { department: { $regex: query, $options: 'i' } }
+            ]
+        }).select('name rvceId department role avatar interests location');
+
+        res.status(200).json(users);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+// @desc    Update User Profile
+// @route   PUT /api/users/profile
+// @access  Private
+const updateUserProfile = async (req, res) => {
+    try {
+        console.log("Update Profile Request Body:", req.body);
+        console.log("Authenticated User ID:", req.user.id);
+        const { location, interests, bio, showPersonalDetails } = req.body;
+
+        // Find user
+        const user = await User.findById(req.user.id);
+
+        if (user) {
+            // Update fields if they are present in request body
+            if (location !== undefined) user.location = location;
+            if (interests !== undefined) user.interests = interests;
+            if (bio !== undefined) user.bio = bio;
+            if (showPersonalDetails !== undefined) user.showPersonalDetails = showPersonalDetails;
+
+            const updatedUser = await user.save();
+
+            res.json({
+                _id: updatedUser._id,
+                name: updatedUser.name,
+                email: updatedUser.email,
+                rvceId: updatedUser.rvceId,
+                department: updatedUser.department,
+                role: updatedUser.role,
+                location: updatedUser.location,
+                interests: updatedUser.interests,
+                bio: updatedUser.bio,
+                showPersonalDetails: updatedUser.showPersonalDetails,
+                token: req.headers.authorization.split(' ')[1] // Keep existing token
+            });
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
 module.exports = {
     getRecommendations,
     getConnections,
     getRequests,
     sendRequest,
     acceptRequest,
-    rejectRequest
+    rejectRequest,
+    searchUsers,
+    updateUserProfile
 };

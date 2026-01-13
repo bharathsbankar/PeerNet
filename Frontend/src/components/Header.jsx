@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext';
 const Header = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, logout, isAuthenticated } = useApp();
+    const { user, logout, isAuthenticated, connectionRequests } = useApp();
 
     const handleLogout = () => {
         logout();
@@ -14,7 +14,12 @@ const Header = () => {
 
     const navItems = [
         { path: '/home', icon: Home, label: 'Feed' },
-        { path: '/connect', icon: Users, label: 'Connect' },
+        {
+            path: '/connect',
+            icon: Users,
+            label: 'Connect',
+            badge: connectionRequests?.length > 0 ? connectionRequests.length : null
+        },
         { path: '/chat', icon: MessageCircle, label: 'Chat' },
         { path: '/profile', icon: User, label: 'Profile' },
     ];
@@ -27,7 +32,7 @@ const Header = () => {
                 <div className="flex justify-between items-center h-16">
                     {/* Logo */}
                     <Link to="/home" className="flex items-center space-x-2">
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
+                        <div className="w-10 h-10 bg-gradient-to-br from-sky-500 to-sky-700 rounded-lg flex items-center justify-center">
                             <span className="text-white font-bold text-xl">RC</span>
                         </div>
                         <span className="text-xl font-bold text-gray-900 hidden sm:block">
@@ -37,17 +42,22 @@ const Header = () => {
 
                     {/* Navigation */}
                     <nav className="flex items-center space-x-1">
-                        {navItems.map(({ path, icon: Icon, label }) => (
+                        {navItems.map(({ path, icon: Icon, label, badge }) => (
                             <Link
                                 key={path}
                                 to={path}
-                                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${location.pathname === path
-                                    ? 'bg-primary-100 text-primary-700'
+                                className={`relative flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${location.pathname === path
+                                    ? 'bg-sky-100 text-sky-700'
                                     : 'text-gray-600 hover:bg-gray-100'
                                     }`}
                             >
                                 <Icon size={20} />
                                 <span className="hidden md:block font-medium">{label}</span>
+                                {badge && (
+                                    <span className="absolute -top-1 -right-1 md:top-1 md:right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] flex items-center justify-center">
+                                        {badge}
+                                    </span>
+                                )}
                             </Link>
                         ))}
                     </nav>

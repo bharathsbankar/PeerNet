@@ -1,38 +1,85 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserPlus, Check, X, Search, Briefcase, MapPin, Heart, Users } from 'lucide-react';
 import Header from '../components/Header';
-import { dummyUsers } from '../data/dummyData';
 import { useApp } from '../context/AppContext';
 
 const Connect = () => {
-    const { user, connectionRequests, acceptConnectionRequest, rejectConnectionRequest } = useApp();
+    const {
+        user,
+        loading,
+        recommendations,
+        connections,
+        connectionRequests,
+        sendConnectionRequest,
+        acceptConnectionRequest,
+        rejectConnectionRequest,
+        searchPeers,
+        fetchSocialData,
+        accessChat
+    } = useApp();
+
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState('recommended'); // recommended, connected, requests
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [activeTab, setActiveTab] = useState('recommended');
 
-    // Filter users based on search
-    const filteredUsers = dummyUsers.filter(u =>
-        u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.department.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const navigate = useNavigate();
 
-    // Get connected users
-    const connectedUsers = filteredUsers.filter(u => user.connectedPeers.includes(u._id));
+    const handleMessageClick = async (userId) => {
+        const chat = await accessChat(userId);
+        if (chat) {
+            navigate('/chat', { state: { chatId: chat._id } }); // Pass chat ID to open
+        }
+    };
 
-    // Get recommended users (Exclude already connected peers)
-    const recommendedUsers = filteredUsers.filter(u => {
-        const isConnected = user.connectedPeers.includes(u._id);
-        if (isConnected) return false; // Don't recommend connected peers
+    // Debounced Search Effect
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(async () => {
+            if (searchQuery.trim()) {
+                setIsSearching(true);
+                const results = await searchPeers(searchQuery);
+                setSearchResults(results || []);
+                setIsSearching(false);
+            } else {
+                setSearchResults([]);
+            }
+        }, 500);
 
-        const hasCommonInterest = u.interests.some(interest =>
-            user.interests.includes(interest)
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery]);
+
+    // Fetch data when tab changes or component mounts
+    useEffect(() => {
+        if (user) {
+            fetchSocialData();
+        } else if (!loading) {
+            navigate('/login');
+        }
+    }, [activeTab, user, loading, navigate]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
+            </div>
         );
-        const sameDepartment = u.department === user.department;
-        const sameLocation = u.location === user.location;
-        return hasCommonInterest || sameDepartment || sameLocation;
-    });
+    }
+
+    if (!user) return null; // Should redirect by now
+
+    // Determine which list to show
+    const displayList = searchQuery ? searchResults : (
+        activeTab === 'recommended' ? recommendations :
+            activeTab === 'connected' ? connections :
+                connectionRequests
+    );
 
     // Unified Card Component
     const UserCard = ({ peerUser, type, requestId = null }) => {
+        // Safe check for peerUser
+        if (!peerUser) return null;
+
         // type: 'recommended', 'connected', 'request'
         const isConnected = type === 'connected';
 
@@ -48,7 +95,7 @@ const Connect = () => {
 
                 {/* Avatar */}
                 <div className="w-20 h-20 mb-4 bg-gradient-to-br from-sky-400 to-sky-600 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-md group-hover:scale-105 transition-transform">
-                    {peerUser.name.charAt(0)}
+                    {peerUser.name?.charAt(0) || '?'}
                 </div>
 
                 {/* Name & ID */}
@@ -72,7 +119,7 @@ const Connect = () => {
                 </div>
 
                 {/* Private Info Preview (Only for Connected) */}
-                {isConnected && peerUser.showPersonalDetails && (
+                {isConnected && peerUser.showPersonalDetails && peerUser.interests && (
                     <div className="w-full mb-6 text-left">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Interests</p>
                         <div className="flex flex-wrap gap-1 justify-center">
@@ -88,14 +135,26 @@ const Connect = () => {
                 {/* Action Buttons */}
                 <div className="w-full mt-auto">
                     {type === 'connected' && (
-                        <button disabled className="w-full py-2.5 bg-green-50 text-green-700 rounded-lg font-medium flex items-center justify-center space-x-2 cursor-default border border-green-100">
-                            <Check size={18} />
-                            <span>Connected</span>
-                        </button>
+                        <div className="flex space-x-2">
+                            <button disabled className="flex-1 py-2.5 bg-green-50 text-green-700 rounded-lg font-medium flex items-center justify-center space-x-2 cursor-default border border-green-100">
+                                <Check size={18} />
+                                <span>Connected</span>
+                            </button>
+                            <button
+                                onClick={() => handleMessageClick(peerUser._id)}
+                                className="flex-1 py-2.5 bg-sky-50 text-sky-700 rounded-lg font-medium flex items-center justify-center space-x-2 hover:bg-sky-100 transition-colors border border-sky-100"
+                            >
+                                <span className="transform rotate-0">💬</span>
+                                <span>Message</span>
+                            </button>
+                        </div>
                     )}
 
                     {type === 'recommended' && (
-                        <button className="btn-primary w-full py-2.5 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg bg-sky-600 text-white hover:bg-sky-700">
+                        <button
+                            onClick={() => sendConnectionRequest(peerUser._id)}
+                            className="btn-primary w-full py-2.5 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg bg-sky-600 text-white hover:bg-sky-700"
+                        >
                             <UserPlus size={18} />
                             <span>Connect</span>
                         </button>
@@ -125,13 +184,13 @@ const Connect = () => {
                 {type === 'recommended' && (
                     <div className="mt-4 pt-4 border-t border-gray-100 w-full">
                         <div className="flex flex-wrap justify-center gap-2 text-xs text-gray-500">
-                            {peerUser.department === user.department && (
+                            {peerUser.department === user?.department && (
                                 <span className="flex items-center"><span className="mr-1">🎓</span> Same Dept</span>
                             )}
-                            {peerUser.interests.some(i => user.interests.includes(i)) && (
+                            {peerUser.interests?.some(i => user?.interests?.includes(i)) && (
                                 <span className="flex items-center"><span className="mr-1">❤️</span> Common Interests</span>
                             )}
-                            {peerUser.location === user.location && (
+                            {peerUser.location === user?.location && (
                                 <span className="flex items-center"><span className="mr-1">📍</span> Near You</span>
                             )}
                         </div>
@@ -164,7 +223,7 @@ const Connect = () => {
                         <Heart size={18} className={activeTab === 'recommended' ? 'fill-current' : ''} />
                         <span>Connect</span>
                         <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${activeTab === 'recommended' ? 'bg-white/20' : 'bg-gray-100'}`}>
-                            {recommendedUsers.length}
+                            {recommendations.length}
                         </span>
                     </button>
                     <button
@@ -177,7 +236,7 @@ const Connect = () => {
                         <Users size={18} />
                         <span>Connected</span>
                         <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${activeTab === 'connected' ? 'bg-white/20' : 'bg-gray-100'}`}>
-                            {connectedUsers.length}
+                            {connections.length}
                         </span>
                     </button>
                     <button
@@ -189,9 +248,6 @@ const Connect = () => {
                     >
                         <UserPlus size={18} />
                         <span>Requests</span>
-                        <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${activeTab === 'requests' ? 'bg-white/20' : 'bg-gray-100'}`}>
-                            {connectionRequests.length}
-                        </span>
                     </button>
                 </div>
 
@@ -210,39 +266,48 @@ const Connect = () => {
                 {/* Content Grid - Consistent Dimensions */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
-                    {activeTab === 'recommended' && recommendedUsers.map((peerUser, index) => (
-                        <div key={peerUser._id} className="animate-slide-up h-full" style={{ animationDelay: `${index * 50}ms` }}>
-                            <UserCard peerUser={peerUser} type="recommended" />
-                        </div>
-                    ))}
+                    {/* Rendering Logic: 
+                        1. Search Results (Generic User Cards)
+                        2. Requests (Has nested sender)
+                        3. Standard Lists (Recommendations/Connections)
+                    */}
+                    {displayList.map((item, index) => {
+                        // Handle Requests having nested 'sender' object
+                        const isRequestTab = activeTab === 'requests' && !searchQuery;
+                        const peerUser = isRequestTab ? item?.sender : item;
+                        const requestId = isRequestTab ? item?._id : null;
 
-                    {activeTab === 'connected' && connectedUsers.map((peerUser, index) => (
-                        <div key={peerUser._id} className="animate-slide-up h-full" style={{ animationDelay: `${index * 50}ms` }}>
-                            <UserCard peerUser={peerUser} type="connected" />
-                        </div>
-                    ))}
+                        // Determine card type for visuals/actions
+                        let cardType = 'recommended'; // Default for search results
+                        if (!searchQuery) {
+                            if (activeTab === 'connected') cardType = 'connected';
+                            if (activeTab === 'requests') cardType = 'request';
+                        } else {
+                            // In search results, check if already connected
+                            const isConnected = connections.some(c => c._id === peerUser._id);
+                            if (isConnected) cardType = 'connected';
+                        }
 
-                    {activeTab === 'requests' && connectionRequests.map((request, index) => (
-                        <div key={request._id} className="animate-slide-up h-full" style={{ animationDelay: `${index * 50}ms` }}>
-                            <UserCard peerUser={request.sender} type="request" requestId={request._id} />
-                        </div>
-                    ))}
+                        return (
+                            <div key={item._id || index} className="animate-slide-up h-full" style={{ animationDelay: `${index * 50}ms` }}>
+                                <UserCard peerUser={peerUser} type={cardType} requestId={requestId} />
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {/* Empty States */}
-                {activeTab === 'recommended' && recommendedUsers.length === 0 && (
+                {displayList.length === 0 && (
                     <div className="text-center py-16 bg-white rounded-xl border border-gray-100 dashed">
-                        <p className="text-gray-500">No new recommendations found.</p>
-                    </div>
-                )}
-                {activeTab === 'connected' && connectedUsers.length === 0 && (
-                    <div className="text-center py-16 bg-white rounded-xl border border-gray-100 dashed">
-                        <p className="text-gray-500">{searchQuery ? 'No connected users match your search.' : 'You haven\'t connected with anyone yet.'}</p>
-                    </div>
-                )}
-                {activeTab === 'requests' && connectionRequests.length === 0 && (
-                    <div className="text-center py-16 bg-white rounded-xl border border-gray-100 dashed">
-                        <p className="text-gray-500">No pending connection requests.</p>
+                        {searchQuery ? (
+                            <p className="text-gray-500">No users found matching "{searchQuery}"</p>
+                        ) : (
+                            <p className="text-gray-500">
+                                {activeTab === 'recommended' && "No new recommendations found."}
+                                {activeTab === 'connected' && "You haven't connected with anyone yet."}
+                                {activeTab === 'requests' && "No pending connection requests."}
+                            </p>
+                        )}
                     </div>
                 )}
             </main>

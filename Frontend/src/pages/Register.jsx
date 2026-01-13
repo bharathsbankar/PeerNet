@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, User, MapPin, IdCard, Briefcase } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { departments, interests as interestOptions } from '../data/dummyData';
+import { departments, interests as interestOptions } from '../data/constants';
 
 const Register = () => {
     const navigate = useNavigate();
@@ -37,14 +37,21 @@ const Register = () => {
         }
     };
 
-    const handleSubmit = (e) => {
+    const [error, setError] = useState('');
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validateRvceId(formData.rvceId)) {
             setRvceIdError('Invalid RVCE ID format');
             return;
         }
-        register(formData);
-        navigate('/home');
+
+        const res = await register(formData);
+        if (res.success) {
+            navigate('/home');
+        } else {
+            setError(res.message);
+        }
     };
 
     const handleChange = (e) => {
@@ -64,11 +71,11 @@ const Register = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 py-12 px-4">
+        <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-sky-100 py-12 px-4">
             <div className="max-w-2xl mx-auto">
                 <div className="text-center mb-8 animate-fade-in">
                     <div className="flex items-center justify-center space-x-3 mb-4">
-                        <div className="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center shadow-lg">
+                        <div className="w-14 h-14 bg-gradient-to-br from-sky-500 to-sky-700 rounded-2xl flex items-center justify-center shadow-lg">
                             <span className="text-white font-bold text-2xl">RC</span>
                         </div>
                         <h1 className="text-3xl font-bold text-gray-900">RVCE Connect</h1>
@@ -77,6 +84,11 @@ const Register = () => {
                 </div>
 
                 <div className="card p-8 animate-slide-up">
+                    {error && (
+                        <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm">
+                            {error}
+                        </div>
+                    )}
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {/* Name */}
                         <div>
@@ -118,7 +130,7 @@ const Register = () => {
                                 <p className="mt-1 text-sm text-red-600">{rvceIdError}</p>
                             )}
                             <p className="mt-1 text-xs text-gray-500">
-                                Format: RVCE + Year(2) + Dept(3) + Number(3)
+                                Enter the Valid RVCE ID
                             </p>
                         </div>
 
@@ -212,7 +224,7 @@ const Register = () => {
                                         type="button"
                                         onClick={() => toggleInterest(interest)}
                                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${formData.interests.includes(interest)
-                                            ? 'bg-primary-600 text-white'
+                                            ? 'bg-sky-600 text-white'
                                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                             }`}
                                     >
@@ -244,7 +256,7 @@ const Register = () => {
                                 id="showPersonalDetails"
                                 checked={formData.showPersonalDetails}
                                 onChange={(e) => setFormData({ ...formData, showPersonalDetails: e.target.checked })}
-                                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                                className="w-4 h-4 text-sky-600 rounded focus:ring-sky-500"
                             />
                             <label htmlFor="showPersonalDetails" className="text-sm text-gray-700">
                                 Show my interests and bio to connected peers
@@ -259,7 +271,7 @@ const Register = () => {
                     <div className="mt-6 text-center">
                         <p className="text-gray-600">
                             Already have an account?{' '}
-                            <Link to="/login" className="text-primary-600 hover:text-primary-700 font-semibold">
+                            <Link to="/login" className="text-sky-600 hover:text-sky-700 font-semibold">
                                 Sign in
                             </Link>
                         </p>

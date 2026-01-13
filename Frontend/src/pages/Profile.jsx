@@ -1,17 +1,46 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Mail, MapPin, Briefcase, Edit2, Save, X } from 'lucide-react';
 import Header from '../components/Header';
 import { useApp } from '../context/AppContext';
-import { departments, interests as interestOptions } from '../data/dummyData';
+import { departments, interests as interestOptions } from '../data/constants';
 
 const Profile = () => {
-    const { user, setUser } = useApp();
+    const { user, setUser, updateProfile, loading } = useApp();
     const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [formData, setFormData] = useState(user);
 
-    const handleSave = () => {
-        setUser(formData);
-        setIsEditing(false);
+    // Update formData when user data loads
+    useEffect(() => {
+        if (user) {
+            setFormData(user);
+        }
+    }, [user]);
+
+    if (loading || !user) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
+            </div>
+        );
+    }
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        const res = await updateProfile({
+            location: formData.location,
+            interests: formData.interests,
+            bio: formData.bio,
+            showPersonalDetails: formData.showPersonalDetails
+        });
+
+        setIsSaving(false);
+        if (res.success) {
+            setIsEditing(false);
+        } else {
+            console.error(res.message);
+            alert("Failed to update profile: " + res.message);
+        }
     };
 
     const handleCancel = () => {
@@ -57,14 +86,16 @@ const Profile = () => {
                             <div className="flex space-x-2">
                                 <button
                                     onClick={handleSave}
-                                    className="btn-primary flex items-center space-x-2"
+                                    disabled={isSaving}
+                                    className="btn-primary flex items-center space-x-2 disabled:opacity-50"
                                 >
                                     <Save size={18} />
-                                    <span>Save</span>
+                                    <span>{isSaving ? 'Saving...' : 'Save'}</span>
                                 </button>
                                 <button
                                     onClick={handleCancel}
-                                    className="btn-secondary flex items-center space-x-2"
+                                    disabled={isSaving}
+                                    className="btn-secondary flex items-center space-x-2 disabled:opacity-50"
                                 >
                                     <X size={18} />
                                     <span>Cancel</span>
@@ -86,30 +117,16 @@ const Profile = () => {
                             </div>
                         </div>
 
-                        {/* Department */}
+                        {/* Department - Immutable */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Department
                             </label>
-                            {isEditing ? (
-                                <select
-                                    value={formData.department}
-                                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                                    className="input-field"
-                                >
-                                    {departments.map(dept => (
-                                        <option key={dept} value={dept}>{dept}</option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <div className="flex items-center space-x-2 text-gray-900">
-                                    <Briefcase size={18} className="text-primary-600" />
-                                    <span>{user.department}</span>
-                                    <span className="px-2 py-0.5 bg-primary-100 text-primary-700 rounded-full text-xs font-medium">
-                                        {user.role}
-                                    </span>
-                                </div>
-                            )}
+                            <div className="flex items-center space-x-2 text-gray-900 bg-gray-50 p-2 rounded border border-gray-200 cursor-not-allowed">
+                                <Briefcase size={18} className="text-gray-400" />
+                                <span className="text-gray-500">{user.department}</span>
+                                <span className="text-xs text-gray-400 ml-auto">(Immutable)</span>
+                            </div>
                         </div>
 
                         {/* Location */}
@@ -146,8 +163,8 @@ const Profile = () => {
                                             type="button"
                                             onClick={() => toggleInterest(interest)}
                                             className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${formData.interests.includes(interest)
-                                                    ? 'bg-primary-600 text-white'
-                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                ? 'bg-sky-600 text-white'
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                                 }`}
                                         >
                                             {interest}
@@ -219,7 +236,7 @@ const Profile = () => {
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Connections</h3>
                             <div className="grid grid-cols-3 gap-4">
                                 <div className="text-center p-4 bg-primary-50 rounded-lg">
-                                    <p className="text-3xl font-bold text-primary-600">{user.connectedPeers.length}</p>
+                                    <p className="text-3xl font-bold text-primary-600">{user.connectedPeers?.length || 0}</p>
                                     <p className="text-sm text-gray-600">Connected</p>
                                 </div>
                                 <div className="text-center p-4 bg-gray-50 rounded-lg">
